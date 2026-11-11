@@ -8,3 +8,4 @@ import org.mapstruct.Mapper;
 public interface TicketMapper {
     TicketResponse toResponse(Ticket ticket);
 }
+

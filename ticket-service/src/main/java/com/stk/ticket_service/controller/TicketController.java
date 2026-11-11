@@ -9,12 +9,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.ResponseEntity;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 import com.stk.ticket_service.dto.TicketResponse;
 import com.stk.ticket_service.dto.CreateTicketResponse; 
 import com.stk.ticket_service.dto.UpdateTicketResponse;
 import com.stk.ticket_service.service.impl.TicketServiceImpl;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/tickets")
@@ -62,4 +64,10 @@ public class TicketController {
 		ticketService.deleteTicket(id);
 		return ResponseEntity.noContent().build();
 	}
+
+    @GetMapping("/search")
+    public ResponseEntity<List<TicketResponse>> searchTicket(@RequestParam("title") @NotBlank String title) {
+        List<TicketResponse> tickets = ticketService.searchTicket(title);
+        return ResponseEntity.ok(tickets);
+    }
 }

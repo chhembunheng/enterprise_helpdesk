@@ -93,4 +93,11 @@ public class TicketServiceImpl implements TicketService {
             throw new RuntimeException("Invalid UUID format: " + id);
         }
     }
+
+    @Override
+    public List<TicketResponse> searchTicket(String title) {
+        return ticketRepository.findByTitleContainingIgnoreCase(title.trim()).stream()
+                .map(ticketMapper::toResponse)
+                .toList();
+    }
 }
