@@ -48,7 +48,7 @@ public class TicketController {
     @PostMapping("")
     public ResponseEntity<TicketResponse> createTicket(@Valid @RequestBody CreateTicketResponse createTicketResponse) {
         TicketResponse ticket = ticketService.createTicket(createTicketResponse);
-        return ResponseEntity.ok(ticket);
+        return ResponseEntity.status(201).body(ticket);
     }
 
     @PatchMapping("/{id}")

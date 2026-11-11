@@ -10,4 +10,7 @@ import java.util.List;
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 	List<Ticket> findByTitleContainingIgnoreCase(String title);
+    List<Ticket> findByCreatedByOrderByCreatedAtDesc(UUID createdBy);
+    List<Ticket> findByTitleContainingIgnoreCaseAndCreatedBy(String title, UUID createdBy);
+    java.util.Optional<Ticket> findByIdAndCreatedBy(UUID id, UUID createdBy);
 }

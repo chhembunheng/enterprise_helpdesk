@@ -100,3 +100,44 @@ Restart Ticket Service after changing its Java source. For example:
 ```bash
 sh ./gradlew bootRun
 ```
+
+## Register, log in and submit a ticket
+
+Start PostgreSQL, then run `sh ./gradlew bootRun` from both `auth-service` and
+`ticket-service` in separate terminals. Open Ticket Service's root URL in your
+browser (for example `http://localhost:8085/` when `TICKET_SERVICE_PORT=8085`).
+The page has registration, login, ticket submission and your ticket list.
+The auth URL follows `AUTH_SERVICE_PORT`; use `AUTH_SERVICE_URL` to override it.
+Tokens are kept in browser memory and cleared on logout/reload. Login expires
+in one hour by default; there is no refresh-token endpoint.
+
+| Service | Endpoint | Request / result |
+| --- | --- | --- |
+| Auth | `POST /auth/register` | `{ "username": "student1", "email": "student1@example.com", "password": "ChooseAStrongPassword" }` → 201 user `{id,username,email}` |
+| Auth | `POST /auth/login` | `{ "username": "student1", "password": "ChooseAStrongPassword" }` → 200 `{accessToken,tokenType,expiresIn,user}` |
+| Auth | `GET /auth/me` | Bearer token → current active user |
+| Ticket | `POST /tickets` | Bearer token + `{ "title": "Cannot access course", "description": "Please help me sign in" }` → 201 ticket, initially OPEN |
+| Ticket | `GET /tickets` | Bearer token → your tickets only |
+| Ticket | `GET /tickets/search?title=Learn` | Bearer token → matching tickets belonging to you; no matches `[]` |
+| Ticket | `GET /tickets/{id}` | Bearer token → your ticket; another user's ticket is 404 |
+| Ticket | `PATCH /tickets/{id}` / `PATCH /tickets/{id}/delete` | Bearer token → update/delete your own ticket only |
+
+Use `Authorization: Bearer <accessToken>` on authenticated requests. Public
+registration always creates role USER, active and not deleted; client-supplied
+roles/owner IDs are never trusted. Passwords are BCrypt hashes and never appear
+in user responses or JWT claims. Usernames and emails are trimmed/lowercased;
+login uses username. Passwords are 8–64 characters and at most 72 UTF-8 bytes.
+Duplicate username/email returns 409; invalid input 400; invalid credentials,
+inactive/deleted users, missing/invalid/expired tokens return 401.
+
+Both services validate HS256 signatures, issuer, audience and expiry using
+`JWT_SECRET` (base64, at least 32 random bytes), `JWT_ISSUER` and `JWT_AUDIENCE`.
+Generate a local secret with `openssl rand -base64 32` and put it in the ignored
+root `.env`; keep the same value for both services. Do not commit it. Use HTTPS
+outside local development. `AUTH_ALLOWED_ORIGINS` is a comma-separated allowlist
+for the browser portal; defaults include the configured localhost ticket port.
+Access tokens remain usable until expiry after logout/account deactivation;
+`/auth/me` additionally checks the current account state. Existing tickets with
+no `created_by` are left untouched and are not exposed as a user's own tickets.
+This step implements login and submission; Kafka notifications and the gateway
+remain separate phases of the blueprint.

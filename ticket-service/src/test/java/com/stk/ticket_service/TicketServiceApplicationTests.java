@@ -7,6 +7,8 @@ import com.stk.ticket_service.service.TicketService;
 import com.stk.ticket_service.dto.CreateTicketResponse;
 
 @SpringBootTest
+@org.springframework.transaction.annotation.Transactional
+@org.springframework.security.test.context.support.WithMockUser(username = "2ecf09ec-42d4-4017-b86c-d57da67602ac")
 class TicketServiceApplicationTests {
 
     @Autowired

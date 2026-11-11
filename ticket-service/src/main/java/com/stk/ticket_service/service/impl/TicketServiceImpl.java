@@ -11,6 +11,9 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class TicketServiceImpl implements TicketService {
@@ -25,7 +28,7 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public List<TicketResponse> getAllTickets() {
-        List<Ticket> tickets = ticketRepository.findAll();
+        List<Ticket> tickets = ticketRepository.findByCreatedByOrderByCreatedAtDesc(currentUserId());
         return tickets.stream()
                 .map(ticketMapper::toResponse)
                 .toList();
@@ -38,9 +41,9 @@ public class TicketServiceImpl implements TicketService {
             Ticket ticket = new Ticket();
             ticket.setTitle(createTicketResponse.title());
             ticket.setDescription(createTicketResponse.description());
-            if (createTicketResponse.status() != null && !createTicketResponse.status().isBlank()) {
-                ticket.setStatus(createTicketResponse.status());
-            }
+            ticket.setStatus("OPEN");
+            ticket.setCreatedBy(currentUserId());
+            ticket.setUpdatedBy(ticket.getCreatedBy());
 
             return ticketMapper.toResponse(ticketRepository.save(ticket));
         } catch (IllegalArgumentException e) {
@@ -51,11 +54,11 @@ public class TicketServiceImpl implements TicketService {
     @Override
     public TicketResponse getTicketById(String id) {
         try {
-            Ticket ticket = ticketRepository.findById(UUID.fromString(id))
-                    .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + id));
+            Ticket ticket = ticketRepository.findByIdAndCreatedBy(UUID.fromString(id), currentUserId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
             return ticketMapper.toResponse(ticket);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid UUID format: " + id);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket ID");
         }
     }
 
@@ -63,9 +66,10 @@ public class TicketServiceImpl implements TicketService {
     @Transactional
     public TicketResponse updateTicket(String id, UpdateTicketResponse updateTicketResponse) {
         try {
-            Ticket ticket = ticketRepository.findById(UUID.fromString(id))
-                    .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + id));
+            Ticket ticket = ticketRepository.findByIdAndCreatedBy(UUID.fromString(id), currentUserId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
 
+            ticket.setUpdatedBy(currentUserId());
             if (updateTicketResponse.title() != null) {
                 ticket.setTitle(updateTicketResponse.title());
             }
@@ -78,7 +82,7 @@ public class TicketServiceImpl implements TicketService {
 
             return ticketMapper.toResponse(ticketRepository.save(ticket));
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid UUID format: " + id);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket ID");
         }
     }
 
@@ -86,18 +90,28 @@ public class TicketServiceImpl implements TicketService {
     @Transactional
     public void deleteTicket(String id) {
         try {
-            Ticket ticket = ticketRepository.findById(UUID.fromString(id))
-                    .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + id));
+            Ticket ticket = ticketRepository.findByIdAndCreatedBy(UUID.fromString(id), currentUserId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
             ticketRepository.delete(ticket);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid UUID format: " + id);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket ID");
         }
     }
 
     @Override
     public List<TicketResponse> searchTicket(String title) {
-        return ticketRepository.findByTitleContainingIgnoreCase(title.trim()).stream()
+        return ticketRepository.findByTitleContainingIgnoreCaseAndCreatedBy(title.trim(), currentUserId()).stream()
                 .map(ticketMapper::toResponse)
                 .toList();
     }
+    private UUID currentUserId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated())
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login required");
+        try { return UUID.fromString(authentication.getName()); }
+        catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid user identity");
+        }
+    }
+
 }

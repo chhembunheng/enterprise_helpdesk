@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class TicketSearchTest {
+    private static final UUID USER_ID = UUID.fromString("2ecf09ec-42d4-4017-b86c-d57da67602ac");
     @Autowired
     private MockMvc mvc;
 
@@ -31,6 +32,7 @@ class TicketSearchTest {
     private void saveTicket(String title) {
         Ticket ticket = new Ticket();
         ticket.setTitle(title);
+        ticket.setCreatedBy(USER_ID);
         repository.saveAndFlush(ticket);
     }
 
@@ -43,7 +45,7 @@ class TicketSearchTest {
         saveTicket(second);
         saveTicket("Unrelated " + UUID.randomUUID());
 
-        mvc.perform(get("/tickets/search").param("title", "  " + keyword + "  "))
+        mvc.perform(get("/tickets/search").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(USER_ID.toString()))).param("title", "  " + keyword + "  "))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[*].title", containsInAnyOrder(first, second)));
@@ -51,7 +53,7 @@ class TicketSearchTest {
 
     @Test
     void returnsAnEmptyListWhenNoTitleMatches() throws Exception {
-        mvc.perform(get("/tickets/search").param("title", "missing-" + UUID.randomUUID()))
+        mvc.perform(get("/tickets/search").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(USER_ID.toString()))).param("title", "missing-" + UUID.randomUUID()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
@@ -62,7 +64,7 @@ class TicketSearchTest {
         saveTicket(title);
         saveTicket(title);
 
-        mvc.perform(get("/tickets/search").param("title", title))
+        mvc.perform(get("/tickets/search").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(USER_ID.toString()))).param("title", title))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
     }
@@ -70,13 +72,13 @@ class TicketSearchTest {
     @ParameterizedTest
     @ValueSource(strings = {"", " ", "\t"})
     void rejectsBlankTitles(String title) throws Exception {
-        mvc.perform(get("/tickets/search").param("title", title))
+        mvc.perform(get("/tickets/search").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(USER_ID.toString()))).param("title", title))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void requiresTheTitleParameter() throws Exception {
-        mvc.perform(get("/tickets/search"))
+        mvc.perform(get("/tickets/search").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject(USER_ID.toString()))))
                 .andExpect(status().isBadRequest());
     }
 }
