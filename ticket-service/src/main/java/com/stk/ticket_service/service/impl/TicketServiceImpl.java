@@ -1,10 +1,12 @@
-package com.stk.ticket_service.service;
+package com.stk.ticket_service.service.impl;
 
 import com.stk.ticket_service.dto.CreateTicketResponse;
 import com.stk.ticket_service.dto.TicketResponse;
 import com.stk.ticket_service.dto.UpdateTicketResponse;
+import com.stk.ticket_service.mapper.TicketMapper;
 import com.stk.ticket_service.model.Ticket;
 import com.stk.ticket_service.repository.TicketRepository;
+import com.stk.ticket_service.service.TicketService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -14,16 +16,18 @@ import java.util.UUID;
 public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
+    private final TicketMapper ticketMapper;
 
-    public TicketServiceImpl(TicketRepository ticketRepository) {
+    public TicketServiceImpl(TicketRepository ticketRepository, TicketMapper ticketMapper) {
         this.ticketRepository = ticketRepository;
+        this.ticketMapper = ticketMapper;
     }
 
     @Override
     public List<TicketResponse> getAllTickets() {
         List<Ticket> tickets = ticketRepository.findAll();
         return tickets.stream()
-                .map(TicketResponse::fromTicket)
+                .map(ticketMapper::toResponse)
                 .toList();
     }
 
@@ -38,7 +42,7 @@ public class TicketServiceImpl implements TicketService {
                 ticket.setStatus(createTicketResponse.status());
             }
 
-            return TicketResponse.fromTicket(ticketRepository.save(ticket));
+            return ticketMapper.toResponse(ticketRepository.save(ticket));
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Invalid input: " + e.getMessage());
         }
@@ -49,7 +53,7 @@ public class TicketServiceImpl implements TicketService {
         try {
             Ticket ticket = ticketRepository.findById(UUID.fromString(id))
                     .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + id));
-            return TicketResponse.fromTicket(ticket);
+            return ticketMapper.toResponse(ticket);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Invalid UUID format: " + id);
         }
@@ -72,7 +76,7 @@ public class TicketServiceImpl implements TicketService {
                 ticket.setStatus(updateTicketResponse.status());
             }
 
-            return TicketResponse.fromTicket(ticketRepository.save(ticket));
+            return ticketMapper.toResponse(ticketRepository.save(ticket));
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Invalid UUID format: " + id);
         }

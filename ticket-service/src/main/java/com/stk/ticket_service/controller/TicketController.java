@@ -14,7 +14,7 @@ import java.util.List;
 import com.stk.ticket_service.dto.TicketResponse;
 import com.stk.ticket_service.dto.CreateTicketResponse; 
 import com.stk.ticket_service.dto.UpdateTicketResponse;
-import com.stk.ticket_service.service.TicketServiceImpl;
+import com.stk.ticket_service.service.impl.TicketServiceImpl;
 
 @RestController
 @RequestMapping("/tickets")
